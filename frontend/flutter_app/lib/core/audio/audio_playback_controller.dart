@@ -19,11 +19,7 @@ final audioPlaybackControllerProvider =
     );
 
 class AudioTrack {
-  const AudioTrack({
-    required this.fileName,
-    this.songTitle,
-    this.artist,
-  });
+  const AudioTrack({required this.fileName, this.songTitle, this.artist});
 
   final String fileName;
   final String? songTitle;
@@ -58,6 +54,15 @@ class AudioPlaybackState {
 
 class AudioPlaybackController extends Notifier<AudioPlaybackState> {
   static const _supportedExtensions = {'mp3', 'wav', 'm4a', 'aac'};
+  static const _unsupportedAudioMessage =
+      'This is not a supported audio file. '
+      'Choose an MP3, WAV, M4A, or AAC file.';
+  static const _invalidAudioContentMessage =
+      'This file is not a valid or supported audio file. '
+      'Choose an MP3, WAV, M4A, or AAC file.';
+  static const _unavailablePickerMessage =
+      'The file picker is unavailable in this web session. '
+      'Fully stop and restart the Flutter app to initialize web plugins.';
 
   late AudioPlayerService _service;
 
@@ -75,8 +80,7 @@ class AudioPlaybackController extends Notifier<AudioPlaybackState> {
     try {
       final files = await FilePicker.pickFiles(
         dialogTitle: 'Select an audio file',
-        type: FileType.custom,
-        allowedExtensions: _supportedExtensions.toList(),
+        type: FileType.any,
       );
 
       if (files.isEmpty) {
@@ -87,9 +91,7 @@ class AudioPlaybackController extends Notifier<AudioPlaybackState> {
       final file = files.first;
       final extension = file.extension?.toLowerCase();
       if (extension == null || !_supportedExtensions.contains(extension)) {
-        throw const FormatException(
-          'Choose an MP3, WAV, M4A, or AAC audio file.',
-        );
+        throw const FormatException(_unsupportedAudioMessage);
       }
 
       final length = await file.length();
@@ -115,6 +117,17 @@ class AudioPlaybackController extends Notifier<AudioPlaybackState> {
         fileName: file.name,
       );
       state = state.copyWith(isLoading: false);
+    } on UnimplementedError {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _unavailablePickerMessage,
+      );
+    } on PlayerException {
+      state = state.copyWith(
+        isLoading: false,
+        clearTrack: true,
+        errorMessage: _invalidAudioContentMessage,
+      );
     } on Exception catch (error) {
       state = state.copyWith(
         isLoading: false,

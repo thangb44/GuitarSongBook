@@ -3,11 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:guitar_songbook/core/audio/audio_playback_controller.dart';
 import 'package:guitar_songbook/features/search/models/song.dart';
 import 'package:guitar_songbook/features/search/providers/song_search_provider.dart';
 import 'package:guitar_songbook/features/search/repositories/song_repository.dart';
 import 'package:guitar_songbook/features/search/widgets/song_result_tile.dart';
+import 'package:guitar_songbook/features/song_details/widgets/music_player.dart';
 import 'package:guitar_songbook/main.dart';
+
+const _unsupportedAudioMessage =
+    'This is not a supported audio file. '
+    'Choose an MP3, WAV, M4A, or AAC file.';
 
 void main() {
   testWidgets('debounces search and displays song details', (tester) async {
@@ -178,6 +184,43 @@ void main() {
     expect(find.text('Choose audio file'), findsOneWidget);
     expect(find.textContaining('not uploaded to the backend'), findsOneWidget);
   });
+
+  testWidgets('alerts when the selected file is not supported audio', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioPlaybackControllerProvider.overrideWith(
+            _InvalidAudioPlaybackController.new,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MusicPlayer())),
+      ),
+    );
+
+    await tester.tap(find.text('Choose audio file'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unable to use this audio file'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(_unsupportedAudioMessage),
+      ),
+      findsOneWidget,
+    );
+  });
+}
+
+class _InvalidAudioPlaybackController extends AudioPlaybackController {
+  @override
+  AudioPlaybackState build() => const AudioPlaybackState();
+
+  @override
+  Future<void> selectAudioFile({String? songTitle, String? artist}) async {
+    state = state.copyWith(errorMessage: _unsupportedAudioMessage);
+  }
 }
 
 class _FakeSongRepository implements SongRepository {

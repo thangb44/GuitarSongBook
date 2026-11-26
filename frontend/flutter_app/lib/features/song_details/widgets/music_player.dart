@@ -57,9 +57,8 @@ class MusicPlayer extends ConsumerWidget {
                         title ?? 'No audio selected',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       if (artist != null) ...[
                         const SizedBox(height: 4),
@@ -77,9 +76,8 @@ class MusicPlayer extends ConsumerWidget {
                             'Choose an MP3, WAV, M4A, or AAC file.',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -91,12 +89,7 @@ class MusicPlayer extends ConsumerWidget {
               onPressed: playback.isLoading
                   ? null
                   : () {
-                      unawaited(
-                        controller.selectAudioFile(
-                          songTitle: song?.title,
-                          artist: song?.artist,
-                        ),
-                      );
+                      unawaited(_selectAudioFile(context, ref, controller));
                     },
               icon: playback.isLoading
                   ? const SizedBox(
@@ -106,7 +99,9 @@ class MusicPlayer extends ConsumerWidget {
                     )
                   : const Icon(Icons.folder_open_outlined),
               label: Text(
-                playback.track == null ? 'Choose audio file' : 'Choose another file',
+                playback.track == null
+                    ? 'Choose audio file'
+                    : 'Choose another file',
               ),
             ),
             if (playback.errorMessage != null) ...[
@@ -121,6 +116,35 @@ class MusicPlayer extends ConsumerWidget {
             const PlaybackControls(),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _selectAudioFile(
+    BuildContext context,
+    WidgetRef ref,
+    AudioPlaybackController controller,
+  ) async {
+    await controller.selectAudioFile(
+      songTitle: song?.title,
+      artist: song?.artist,
+    );
+
+    if (!context.mounted) return;
+    final errorMessage = ref.read(audioPlaybackControllerProvider).errorMessage;
+    if (errorMessage == null) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unable to use this audio file'),
+        content: Text(errorMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
