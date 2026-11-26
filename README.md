@@ -1,16 +1,24 @@
-# guitar_songbook
+# Guitar Songbook
 
-A new Flutter project.
+## Project layout
 
-## Getting Started
+- `frontend/flutter_app/` — Flutter application
+- `backend/` — Python API and song-search service
 
-This project is a starting point for a Flutter application.
+## Frontend
 
-A few resources to get you started if this is your first Flutter project:
+Run Flutter commands from the app directory:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```powershell
+cd frontend/flutter_app
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Backend
+
+The Python service is in `backend/`. Its dependencies are listed in
+`backend/requirements.txt`, and `backend/.env.example` documents environment
+configuration.
