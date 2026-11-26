@@ -1,24 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_client.dart';
 import '../models/song.dart';
-import '../repositories/mock_song_repository.dart';
 import '../repositories/song_repository.dart';
+import '../repositories/api_song_repository.dart';
 
-// Repository dependency
-final songRepositoryProvider = Provider<SongRepository>((ref) {
-  return MockSongRepository();
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient();
 });
 
-// Search provider
+final songRepositoryProvider = Provider<SongRepository>((ref) {
+  return ApiSongRepository(ref.watch(apiClientProvider));
+});
+
 final songSearchProvider = FutureProvider.family<List<Song>, String>((
   ref,
   query,
 ) async {
+  final normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) return [];
+
   final repository = ref.watch(songRepositoryProvider);
-
-  if (query.trim().isEmpty) {
-    return repository.getPopularSongs();
-  }
-
-  return repository.searchSongs(query);
-});
+  return repository.searchSongs(normalizedQuery);
+}, retry: (_, _) => null);

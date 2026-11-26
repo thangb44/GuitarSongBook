@@ -52,3 +52,9 @@ app.*.map.json
 **/android/app/debug
 **/android/app/profile
 **/android/app/release
+
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/

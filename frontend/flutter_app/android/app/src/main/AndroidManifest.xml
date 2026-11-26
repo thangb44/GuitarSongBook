@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.guitar_songbook">
+    <uses-permission android:name="android.permission.INTERNET" />
+
    <application
         android:label="guitar_songbook"
         android:name="${applicationName}"

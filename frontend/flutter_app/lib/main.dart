@@ -1,9 +1,13 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:material_ui/material_ui.dart';
 
-import 'features/search/screens/song_search_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'navigation/app_router.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  JustAudioMediaKit.ensureInitialized();
   runApp(const ProviderScope(child: GuitarSongbookApp()));
 }
 
@@ -12,17 +16,11 @@ class GuitarSongbookApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Guitar Songbook',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: Brightness.dark,
-        ),
-      ),
-      home: const SongSearchScreen(),
+      theme: AppTheme.dark,
+      routerConfig: appRouter,
     );
   }
 }

@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/api_error_message.dart';
+import '../../../navigation/app_route_paths.dart';
+import '../models/song.dart';
 import '../providers/song_search_provider.dart';
 import '../widgets/song_result_tile.dart';
-
-import 'dart:async';
 
 class SongSearchScreen extends ConsumerStatefulWidget {
   const SongSearchScreen({super.key});
@@ -16,16 +20,26 @@ class SongSearchScreen extends ConsumerStatefulWidget {
 class _SongSearchScreenState extends ConsumerState<SongSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  String _searchQuery = '';
   Timer? _debounce;
+  String _searchText = '';
+  String _activeQuery = '';
+  bool _isDebouncing = false;
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
+    final query = value.trim();
 
-    if (value.trim().isEmpty) {
-      setState(() {
-        _searchQuery = '';
-      });
+    setState(() {
+      _searchText = value;
+      if (query.length < 2) {
+        _activeQuery = '';
+        _isDebouncing = false;
+      } else {
+        _isDebouncing = query != _activeQuery;
+      }
+    });
+
+    if (query.length < 2 || query == _activeQuery) {
       return;
     }
 
@@ -33,7 +47,8 @@ class _SongSearchScreenState extends ConsumerState<SongSearchScreen> {
       if (!mounted) return;
 
       setState(() {
-        _searchQuery = value.trim();
+        _activeQuery = query;
+        _isDebouncing = false;
       });
     });
   }
@@ -43,13 +58,10 @@ class _SongSearchScreenState extends ConsumerState<SongSearchScreen> {
     _searchController.clear();
 
     setState(() {
-      _searchQuery = '';
+      _searchText = '';
+      _activeQuery = '';
+      _isDebouncing = false;
     });
-  }
-
-  void _onSongSelected(String title) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Selected: $title')));
   }
 
   @override
@@ -61,7 +73,8 @@ class _SongSearchScreenState extends ConsumerState<SongSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final songsAsync = ref.watch(songSearchProvider(_searchQuery));
+    final searchAsync = ref.watch(songSearchProvider(_activeQuery));
+    final query = _searchText.trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -69,91 +82,178 @@ class _SongSearchScreenState extends ConsumerState<SongSearchScreen> {
           'Guitar Songbook',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Local audio player',
+            onPressed: () {
+              context.pushNamed(AppRouteNames.audioUpload);
+            },
+            icon: const Icon(Icons.audio_file_outlined),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
+            constraints: const BoxConstraints(maxWidth: 820),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Find your next song',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 8),
-
-                  const Text(
-                    'Search for songs and discover their guitar chords.',
+                  Text(
+                    'Search MusicBrainz by song title or artist.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
-
                   const SizedBox(height: 24),
-
                   TextField(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
-                      hintText: 'Search songs or artists...',
+                      hintText: 'Search songs or artists',
                       prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
+                      suffixIcon: _searchText.isNotEmpty
                           ? IconButton(
-                              onPressed: _clearSearch,
+                              key: const Key('clear-search'),
+                              tooltip: 'Clear search',
                               icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
                             )
                           : null,
+                      filled: true,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 28),
-
-                  Text(
-                    _searchQuery.isEmpty ? 'Popular Songs' : 'Search Results',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
+                  const SizedBox(height: 20),
                   Expanded(
-                    child: songsAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-
-                      error: (error, stackTrace) =>
-                          Center(child: Text('Something went wrong: $error')),
-
-                      data: (songs) {
-                        if (songs.isEmpty) {
-                          return const Center(child: Text('No songs found.'));
-                        }
-
-                        return ListView.separated(
-                          itemCount: songs.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final song = songs[index];
-
-                            return SongResultTile(
-                              song: song,
-                              onTap: () => _onSongSelected(song.title),
-                            );
-                          },
-                        );
-                      },
+                    child: _buildSearchResults(
+                      context,
+                      query: query,
+                      searchAsync: searchAsync,
                     ),
                   ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(
+    BuildContext context, {
+    required String query,
+    required AsyncValue<List<Song>> searchAsync,
+  }) {
+    if (query.isEmpty) {
+      return const _SearchMessage(
+        icon: Icons.library_music_outlined,
+        message: 'Search for a song or artist to get started.',
+      );
+    }
+
+    if (query.length < 2) {
+      return const _SearchMessage(
+        icon: Icons.search,
+        message: 'Enter at least 2 characters to search.',
+      );
+    }
+
+    if (_isDebouncing) {
+      return const Center(
+        child: SizedBox(width: 220, child: LinearProgressIndicator()),
+      );
+    }
+
+    return searchAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => _SearchMessage(
+        icon: Icons.cloud_off_outlined,
+        message: apiErrorMessage(error),
+        actionLabel: 'Try again',
+        onAction: () => ref.invalidate(songSearchProvider(_activeQuery)),
+      ),
+      data: (songs) {
+        if (songs.isEmpty) {
+          return const _SearchMessage(
+            icon: Icons.music_off_outlined,
+            message: 'No songs found. Try another title or artist.',
+          );
+        }
+
+        return ListView.separated(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          itemCount: songs.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final song = songs[index];
+            return SongResultTile(
+              song: song,
+              onTap: () {
+                context.pushNamed(AppRouteNames.songDetails, extra: song);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SearchMessage extends StatelessWidget {
+  const _SearchMessage({
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 40, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 8),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
         ),
       ),
     );
